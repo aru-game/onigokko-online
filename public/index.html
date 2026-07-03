@@ -2,6 +2,11 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width,
+               initial-scale=1.0,
+               user-scalable=no">
+
 <title>オンライン鬼ごっこ</title>
 
 <style>
@@ -9,18 +14,107 @@ body {
   margin: 0;
   overflow: hidden;
   background: #222;
+  touch-action: none;
 }
 
 canvas {
   display: block;
-  background: #90c978;
+  background: #7bc96f;
+}
+
+/* 上部UI */
+
+#ui {
+  position: fixed;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  z-index: 100;
+  color: white;
+  font-family: sans-serif;
+}
+
+#countdown {
+  font-size: 50px;
+  font-weight: bold;
+}
+
+#timer {
+  font-size: 30px;
+}
+
+#message {
+  font-size: 35px;
+  color: yellow;
+}
+
+/* スマホ操作 */
+
+#controls {
+  position: fixed;
+  bottom: 25px;
+  left: 25px;
+  z-index: 100;
+  user-select: none;
+}
+
+#top {
+  text-align: center;
+}
+
+#controls button {
+  width: 70px;
+  height: 70px;
+  margin: 5px;
+  font-size: 30px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.7);
+}
+
+#restart {
+  position: fixed;
+  right: 25px;
+  bottom: 35px;
+  width: 120px;
+  height: 70px;
+  border: none;
+  border-radius: 20px;
+  font-size: 20px;
+  background: rgba(255,255,255,0.8);
+  z-index: 100;
 }
 </style>
 
 </head>
 <body>
 
+<div id="ui">
+  <div id="countdown"></div>
+  <div id="timer">60</div>
+  <div id="message"></div>
+</div>
+
 <canvas id="game"></canvas>
+
+<div id="controls">
+
+  <div id="top">
+    <button id="up">↑</button>
+  </div>
+
+  <div>
+    <button id="left">←</button>
+    <button id="down">↓</button>
+    <button id="right">→</button>
+  </div>
+
+</div>
+
+<button id="restart">
+  リスタート
+</button>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="game.js"></script>
