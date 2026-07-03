@@ -30,24 +30,6 @@ socket.on("currentPlayers", (serverPlayers) => {
   players = serverPlayers;
 });
 
-socket.on("newPlayer", (player) => {
-  players[player.id] = {
-    x: player.x,
-    y: player.y
-  };
-});
-
-socket.on("playerMoved", (player) => {
-  players[player.id] = {
-    x: player.x,
-    y: player.y
-  };
-});
-
-socket.on("playerDisconnected", (id) => {
-  delete players[id];
-});
-
 const keys = {};
 
 window.addEventListener("keydown", (e) => {
@@ -93,12 +75,39 @@ function update() {
   me.x = Math.max(0, Math.min(canvas.width - 40, me.x));
   me.y = Math.max(0, Math.min(canvas.height - 40, me.y));
 
-  socket.emit("move", me);
+  socket.emit("move", {
+    x: me.x,
+    y: me.y
+  });
+}
+
+function checkCatch() {
+  const mePlayer = players[myId];
+
+  if (!mePlayer) return;
+  if (!mePlayer.oni) return;
+
+  for (const id in players) {
+    if (id === myId) continue;
+
+    const p = players[id];
+
+    const dx = mePlayer.x - p.x;
+    const dy = mePlayer.y - p.y;
+
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance < 40) {
+      alert("鬼の勝ち！");
+      location.reload();
+    }
+  }
 }
 
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // 障害物
   ctx.fillStyle = "gray";
 
   for (const obs of obstacles) {
@@ -110,22 +119,32 @@ function draw() {
     );
   }
 
+  // プレイヤー
   for (const id in players) {
     const p = players[id];
 
-    if (id === myId) {
+    if (p.oni) {
       ctx.fillStyle = "red";
     } else {
-      ctx.fillStyle = "blue";
+      ctx.fillStyle = "green";
     }
 
     ctx.fillRect(p.x, p.y, 40, 40);
+
+    // 自分に名前表示
+    if (id === myId) {
+      ctx.fillStyle = "white";
+      ctx.font = "20px sans-serif";
+      ctx.fillText("YOU", p.x - 5, p.y - 10);
+    }
   }
 }
 
 function gameLoop() {
   update();
   draw();
+  checkCatch();
+
   requestAnimationFrame(gameLoop);
 }
 
