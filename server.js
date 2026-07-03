@@ -14,28 +14,29 @@ io.on("connection", (socket) => {
   console.log("接続:", socket.id);
 
   players[socket.id] = {
-    x: 100,
-    y: 100
+    x: 100 + Math.random() * 500,
+    y: 100 + Math.random() * 300
   };
 
   socket.emit("currentPlayers", players);
+
   socket.broadcast.emit("newPlayer", {
     id: socket.id,
-    x: 100,
-    y: 100
+    x: players[socket.id].x,
+    y: players[socket.id].y
   });
 
   socket.on("move", (data) => {
-    if (players[socket.id]) {
-      players[socket.id].x = data.x;
-      players[socket.id].y = data.y;
+    if (!players[socket.id]) return;
 
-      io.emit("playerMoved", {
-        id: socket.id,
-        x: data.x,
-        y: data.y
-      });
-    }
+    players[socket.id].x = data.x;
+    players[socket.id].y = data.y;
+
+    io.emit("playerMoved", {
+      id: socket.id,
+      x: data.x,
+      y: data.y
+    });
   });
 
   socket.on("disconnect", () => {
@@ -48,4 +49,5 @@ const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
   console.log(`サーバー起動 : ${PORT}`);
+});}`);
 });
