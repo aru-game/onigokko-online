@@ -6,29 +6,94 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+window.addEventListener("resize", () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
+
 let myId = null;
 let players = {};
+let canMove = false;
+
+const PLAYER_SIZE = 40;
+const SPEED = 5;
+
+// 障害物
+const obstacles = [
+  { x: 300, y: 150, width: 150, height: 50 },
+  { x: 700, y: 150, width: 150, height: 50 },
+  { x: 500, y: 300, width: 200, height: 60 },
+  { x: 300, y: 500, width: 150, height: 50 },
+  { x: 700, y: 500, width: 150, height: 50 }
+];
 
 let me = {
-  x: 100,
-  y: 100,
-  speed: 5
+  x: 80,
+  y: 80
 };
 
-const obstacles = [
-  { x: 200, y: 150, width: 120, height: 200 },
-  { x: 500, y: 120, width: 180, height: 60 },
-  { x: 300, y: 450, width: 250, height: 70 },
-  { x: 700, y: 300, width: 100, height: 220 }
-];
+// --------------------
+// Socket
+// --------------------
 
 socket.on("connect", () => {
   myId = socket.id;
 });
 
+socket.on("roomFull", () => {
+  alert("部屋が満員です。");
+});
+
 socket.on("currentPlayers", (serverPlayers) => {
   players = serverPlayers;
+
+  if (players[myId]) {
+    me.x = players[myId].x;
+    me.y = players[myId].y;
+  }
 });
+
+socket.on("playerMoved", (player) => {
+  if (!players[player.id]) return;
+
+  players[player.id].x = player.x;
+  players[player.id].y = player.y;
+});
+
+socket.on("countdown", (n) => {
+  const c = document.getElementById("countdown");
+
+  if (n > 0) {
+    c.textContent = n;
+    canMove = false;
+  } else {
+    c.textContent = "START!";
+    canMove = true;
+
+    setTimeout(() => {
+      c.textContent = "";
+    }, 1000);
+  }
+});
+
+socket.on("timer", (t) => {
+  document.getElementById("timer").textContent =
+    "残り " + t + " 秒";
+});
+
+socket.on("gameStart", () => {
+  canMove = true;
+});
+
+socket.on("gameOver", (msg) => {
+  canMove = false;
+  document.getElementById("message").textContent =
+    msg;
+});
+
+// --------------------
+// 入力
+// --------------------
 
 const keys = {};
 
@@ -40,13 +105,57 @@ window.addEventListener("keyup", (e) => {
   keys[e.key] = false;
 });
 
-function hitWall(x, y, size) {
-  for (const obs of obstacles) {
+// スマホボタン
+
+const mobile = {
+  up: false,
+  down: false,
+  left: false,
+  right: false
+};
+
+function setButton(id, key) {
+  const b = document.getElementById(id);
+
+  b.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    mobile[key] = true;
+  });
+
+  b.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    mobile[key] = false;
+  });
+
+  b.addEventListener("mousedown", () => {
+    mobile[key] = true;
+  });
+
+  b.addEventListener("mouseup", () => {
+    mobile[key] = false;
+  });
+
+  b.addEventListener("mouseleave", () => {
+    mobile[key] = false;
+  });
+}
+
+setButton("up", "up");
+setButton("down", "down");
+setButton("left", "left");
+setButton("right", "right");
+
+// --------------------
+// 壁判定
+// --------------------
+
+function hitWall(x, y) {
+  for (const o of obstacles) {
     if (
-      x < obs.x + obs.width &&
-      x + size > obs.x &&
-      y < obs.y + obs.height &&
-      y + size > obs.y
+      x < o.x + o.width &&
+      x + PLAYER_SIZE > o.x &&
+      y < o.y + o.height &&
+      y + PLAYER_SIZE > o.y
     ) {
       return true;
     }
@@ -55,25 +164,50 @@ function hitWall(x, y, size) {
   return false;
 }
 
+// --------------------
+// 更新
+// --------------------
+
 function update() {
+  if (!canMove) return;
+  if (!players[myId]) return;
+
   let dx = 0;
   let dy = 0;
 
-  if (keys["ArrowUp"]) dy -= me.speed;
-  if (keys["ArrowDown"]) dy += me.speed;
-  if (keys["ArrowLeft"]) dx -= me.speed;
-  if (keys["ArrowRight"]) dx += me.speed;
+  if (keys["ArrowUp"] || mobile.up) {
+    dy -= SPEED;
+  }
 
-  if (!hitWall(me.x + dx, me.y, 40)) {
+  if (keys["ArrowDown"] || mobile.down) {
+    dy += SPEED;
+  }
+
+  if (keys["ArrowLeft"] || mobile.left) {
+    dx -= SPEED;
+  }
+
+  if (keys["ArrowRight"] || mobile.right) {
+    dx += SPEED;
+  }
+
+  if (!hitWall(me.x + dx, me.y)) {
     me.x += dx;
   }
 
-  if (!hitWall(me.x, me.y + dy, 40)) {
+  if (!hitWall(me.x, me.y + dy)) {
     me.y += dy;
   }
 
-  me.x = Math.max(0, Math.min(canvas.width - 40, me.x));
-  me.y = Math.max(0, Math.min(canvas.height - 40, me.y));
+  me.x = Math.max(
+    0,
+    Math.min(canvas.width - PLAYER_SIZE, me.x)
+  );
+
+  me.y = Math.max(
+    0,
+    Math.min(canvas.height - PLAYER_SIZE, me.y)
+  );
 
   socket.emit("move", {
     x: me.x,
@@ -81,41 +215,27 @@ function update() {
   });
 }
 
-function checkCatch() {
-  const mePlayer = players[myId];
-
-  if (!mePlayer) return;
-  if (!mePlayer.oni) return;
-
-  for (const id in players) {
-    if (id === myId) continue;
-
-    const p = players[id];
-
-    const dx = mePlayer.x - p.x;
-    const dy = mePlayer.y - p.y;
-
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance < 40) {
-      alert("鬼の勝ち！");
-      location.reload();
-    }
-  }
-}
+// --------------------
+// 描画
+// --------------------
 
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
 
   // 障害物
-  ctx.fillStyle = "gray";
+  ctx.fillStyle = "#555";
 
-  for (const obs of obstacles) {
+  for (const o of obstacles) {
     ctx.fillRect(
-      obs.x,
-      obs.y,
-      obs.width,
-      obs.height
+      o.x,
+      o.y,
+      o.width,
+      o.height
     );
   }
 
@@ -123,28 +243,56 @@ function draw() {
   for (const id in players) {
     const p = players[id];
 
+    if (!p.alive) {
+      continue;
+    }
+
     if (p.oni) {
       ctx.fillStyle = "red";
     } else {
-      ctx.fillStyle = "green";
+      ctx.fillStyle = "lime";
     }
 
-    ctx.fillRect(p.x, p.y, 40, 40);
+    ctx.fillRect(
+      p.x,
+      p.y,
+      PLAYER_SIZE,
+      PLAYER_SIZE
+    );
 
-    // 自分に名前表示
+    ctx.fillStyle = "white";
+    ctx.font = "18px sans-serif";
+
     if (id === myId) {
-      ctx.fillStyle = "white";
-      ctx.font = "20px sans-serif";
-      ctx.fillText("YOU", p.x - 5, p.y - 10);
+      ctx.fillText(
+        "YOU",
+        p.x - 5,
+        p.y - 10
+      );
     }
   }
 }
 
+// --------------------
+// リスタート
+// --------------------
+
+document
+  .getElementById("restart")
+  .addEventListener("click", () => {
+    document.getElementById("message")
+      .textContent = "";
+
+    socket.emit("restart");
+  });
+
+// --------------------
+// ループ
+// --------------------
+
 function gameLoop() {
   update();
   draw();
-  checkCatch();
-
   requestAnimationFrame(gameLoop);
 }
 
