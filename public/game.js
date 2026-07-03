@@ -100,6 +100,21 @@ for (let obs of obstacles) {
   }
 }
 
+function hitWall(x, y, size) {
+  for (let obs of obstacles) {
+    if (
+      x < obs.x + obs.width &&
+      x + size > obs.x &&
+      y < obs.y + obs.height &&
+      y + size > obs.y
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function gameLoop() {
   update();
   draw();
