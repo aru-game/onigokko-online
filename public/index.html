@@ -2,10 +2,11 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width,
-               initial-scale=1.0,
-               user-scalable=no">
+<meta
+  name="viewport"
+  content="width=device-width,
+           initial-scale=1.0,
+           user-scalable=no">
 
 <title>オンライン鬼ごっこ</title>
 
@@ -15,6 +16,7 @@ body {
   overflow: hidden;
   background: #222;
   touch-action: none;
+  font-family: sans-serif;
 }
 
 canvas {
@@ -26,35 +28,50 @@ canvas {
 
 #ui {
   position: fixed;
-  top: 15px;
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
-  z-index: 100;
   color: white;
-  font-family: sans-serif;
+  z-index: 100;
+  pointer-events: none;
+}
+
+#myName {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+#oniText {
+  font-size: 26px;
+  color: yellow;
+  margin-top: 5px;
 }
 
 #countdown {
-  font-size: 50px;
+  font-size: 60px;
   font-weight: bold;
+  margin-top: 5px;
 }
 
 #timer {
   font-size: 30px;
+  margin-top: 5px;
 }
 
 #message {
-  font-size: 35px;
-  color: yellow;
+  font-size: 38px;
+  color: orange;
+  font-weight: bold;
+  margin-top: 10px;
 }
 
-/* スマホ操作 */
+/* スマホボタン */
 
 #controls {
   position: fixed;
-  bottom: 25px;
-  left: 25px;
+  left: 15px;
+  bottom: 15px;
   z-index: 100;
   user-select: none;
 }
@@ -64,26 +81,36 @@ canvas {
 }
 
 #controls button {
-  width: 70px;
-  height: 70px;
-  margin: 5px;
-  font-size: 30px;
+  width: 50px;
+  height: 50px;
+  margin: 3px;
+  font-size: 24px;
   border: none;
-  border-radius: 20px;
-  background: rgba(255,255,255,0.7);
+  border-radius: 15px;
+  background: rgba(255,255,255,0.75);
 }
+
+/* リスタート */
 
 #restart {
   position: fixed;
-  right: 25px;
-  bottom: 35px;
-  width: 120px;
-  height: 70px;
+  right: 15px;
+  top: 15px;
+  width: 90px;
+  height: 40px;
   border: none;
-  border-radius: 20px;
-  font-size: 20px;
+  border-radius: 12px;
+  font-size: 16px;
   background: rgba(255,255,255,0.8);
   z-index: 100;
+}
+
+/* PCではボタンを非表示 */
+
+@media (min-width: 900px) {
+  #controls {
+    display: none;
+  }
 }
 </style>
 
@@ -91,9 +118,24 @@ canvas {
 <body>
 
 <div id="ui">
-  <div id="countdown"></div>
-  <div id="timer">60</div>
-  <div id="message"></div>
+
+  <div id="myName">
+    接続中...
+  </div>
+
+  <div id="oniText">
+  </div>
+
+  <div id="countdown">
+  </div>
+
+  <div id="timer">
+    残り60秒
+  </div>
+
+  <div id="message">
+  </div>
+
 </div>
 
 <canvas id="game"></canvas>
@@ -113,7 +155,7 @@ canvas {
 </div>
 
 <button id="restart">
-  リスタート
+  再開
 </button>
 
 <script src="/socket.io/socket.io.js"></script>
