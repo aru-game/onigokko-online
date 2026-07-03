@@ -113,9 +113,13 @@ const mobile = {
   left: false,
   right: false
 };
-
 function setButton(id, key) {
   const b = document.getElementById(id);
+
+  if (!b) {
+    console.error(id + " ボタンが見つかりません");
+    return;
+  }
 
   b.addEventListener("touchstart", (e) => {
     e.preventDefault();
@@ -139,7 +143,6 @@ function setButton(id, key) {
     mobile[key] = false;
   });
 }
-
 setButton("up", "up");
 setButton("down", "down");
 setButton("left", "left");
