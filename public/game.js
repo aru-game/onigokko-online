@@ -18,30 +18,28 @@ let canMove = false;
 const PLAYER_SIZE = 40;
 const SPEED = 5;
 
-// 障害物
-const obstacles = [
-  { x: 300, y: 150, width: 150, height: 50 },
-  { x: 700, y: 150, width: 150, height: 50 },
-  { x: 500, y: 300, width: 200, height: 60 },
-  { x: 300, y: 500, width: 150, height: 50 },
-  { x: 700, y: 500, width: 150, height: 50 }
-];
-
 let me = {
   x: 80,
   y: 80
 };
 
-// --------------------
+// 障害物
+const obstacles = [
+  { x: 300, y: 200, width: 200, height: 50 },
+  { x: 700, y: 200, width: 200, height: 50 },
+  { x: 500, y: 400, width: 200, height: 50 }
+];
+
+// ====================
 // Socket
-// --------------------
+// ====================
 
 socket.on("connect", () => {
   myId = socket.id;
 });
 
 socket.on("roomFull", () => {
-  alert("部屋が満員です。");
+  alert("部屋が満員です（最大4人）");
 });
 
 socket.on("currentPlayers", (serverPlayers) => {
@@ -50,6 +48,31 @@ socket.on("currentPlayers", (serverPlayers) => {
   if (players[myId]) {
     me.x = players[myId].x;
     me.y = players[myId].y;
+
+    document.getElementById(
+      "myName"
+    ).textContent =
+      "あなたはプレイヤー" +
+      players[myId].number +
+      "です";
+  }
+
+  let oni = null;
+
+  for (const id in players) {
+    if (players[id].oni) {
+      oni = players[id];
+      break;
+    }
+  }
+
+  if (oni) {
+    document.getElementById(
+      "oniText"
+    ).textContent =
+      "プレイヤー" +
+      oni.number +
+      "が鬼です！";
   }
 });
 
@@ -61,7 +84,10 @@ socket.on("playerMoved", (player) => {
 });
 
 socket.on("countdown", (n) => {
-  const c = document.getElementById("countdown");
+  const c =
+    document.getElementById(
+      "countdown"
+    );
 
   if (n > 0) {
     c.textContent = n;
@@ -77,35 +103,51 @@ socket.on("countdown", (n) => {
 });
 
 socket.on("timer", (t) => {
-  document.getElementById("timer").textContent =
+  document.getElementById(
+    "timer"
+  ).textContent =
     "残り " + t + " 秒";
 });
 
 socket.on("gameStart", () => {
   canMove = true;
+
+  document.getElementById(
+    "message"
+  ).textContent = "";
 });
 
 socket.on("gameOver", (msg) => {
   canMove = false;
-  document.getElementById("message").textContent =
-    msg;
+
+  document.getElementById(
+    "message"
+  ).textContent = msg;
 });
 
-// --------------------
+// ====================
 // 入力
-// --------------------
+// ====================
 
 const keys = {};
 
-window.addEventListener("keydown", (e) => {
-  keys[e.key] = true;
-});
+window.addEventListener(
+  "keydown",
+  (e) => {
+    keys[e.key] = true;
+  }
+);
 
-window.addEventListener("keyup", (e) => {
-  keys[e.key] = false;
-});
+window.addEventListener(
+  "keyup",
+  (e) => {
+    keys[e.key] = false;
+  }
+);
 
-// スマホボタン
+// ====================
+// スマホ操作
+// ====================
 
 const mobile = {
   up: false,
@@ -113,44 +155,59 @@ const mobile = {
   left: false,
   right: false
 };
+
 function setButton(id, key) {
-  const b = document.getElementById(id);
+  const b =
+    document.getElementById(id);
 
-  if (!b) {
-    console.error(id + " ボタンが見つかりません");
-    return;
-  }
+  if (!b) return;
 
-  b.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    mobile[key] = true;
-  });
+  b.addEventListener(
+    "touchstart",
+    (e) => {
+      e.preventDefault();
+      mobile[key] = true;
+    }
+  );
 
-  b.addEventListener("touchend", (e) => {
-    e.preventDefault();
-    mobile[key] = false;
-  });
+  b.addEventListener(
+    "touchend",
+    (e) => {
+      e.preventDefault();
+      mobile[key] = false;
+    }
+  );
 
-  b.addEventListener("mousedown", () => {
-    mobile[key] = true;
-  });
+  b.addEventListener(
+    "mousedown",
+    () => {
+      mobile[key] = true;
+    }
+  );
 
-  b.addEventListener("mouseup", () => {
-    mobile[key] = false;
-  });
+  b.addEventListener(
+    "mouseup",
+    () => {
+      mobile[key] = false;
+    }
+  );
 
-  b.addEventListener("mouseleave", () => {
-    mobile[key] = false;
-  });
+  b.addEventListener(
+    "mouseleave",
+    () => {
+      mobile[key] = false;
+    }
+  );
 }
+
 setButton("up", "up");
 setButton("down", "down");
 setButton("left", "left");
 setButton("right", "right");
 
-// --------------------
+// ====================
 // 壁判定
-// --------------------
+// ====================
 
 function hitWall(x, y) {
   for (const o of obstacles) {
@@ -167,9 +224,9 @@ function hitWall(x, y) {
   return false;
 }
 
-// --------------------
+// ====================
 // 更新
-// --------------------
+// ====================
 
 function update() {
   if (!canMove) return;
@@ -178,38 +235,68 @@ function update() {
   let dx = 0;
   let dy = 0;
 
-  if (keys["ArrowUp"] || mobile.up) {
+  if (
+    keys["ArrowUp"] ||
+    mobile.up
+  ) {
     dy -= SPEED;
   }
 
-  if (keys["ArrowDown"] || mobile.down) {
+  if (
+    keys["ArrowDown"] ||
+    mobile.down
+  ) {
     dy += SPEED;
   }
 
-  if (keys["ArrowLeft"] || mobile.left) {
+  if (
+    keys["ArrowLeft"] ||
+    mobile.left
+  ) {
     dx -= SPEED;
   }
 
-  if (keys["ArrowRight"] || mobile.right) {
+  if (
+    keys["ArrowRight"] ||
+    mobile.right
+  ) {
     dx += SPEED;
   }
 
-  if (!hitWall(me.x + dx, me.y)) {
+  if (
+    !hitWall(
+      me.x + dx,
+      me.y
+    )
+  ) {
     me.x += dx;
   }
 
-  if (!hitWall(me.x, me.y + dy)) {
+  if (
+    !hitWall(
+      me.x,
+      me.y + dy
+    )
+  ) {
     me.y += dy;
   }
 
   me.x = Math.max(
     0,
-    Math.min(canvas.width - PLAYER_SIZE, me.x)
+    Math.min(
+      canvas.width -
+        PLAYER_SIZE,
+      me.x
+    )
   );
 
   me.y = Math.max(
     0,
-    Math.min(canvas.height - PLAYER_SIZE, me.y)
+    Math.min(
+      canvas.height -
+        PLAYER_SIZE,
+      me.y
+    )
   );
 
   socket.emit("move", {
@@ -218,9 +305,9 @@ function update() {
   });
 }
 
-// --------------------
+// ====================
 // 描画
-// --------------------
+// ====================
 
 function draw() {
   ctx.clearRect(
@@ -246,14 +333,12 @@ function draw() {
   for (const id in players) {
     const p = players[id];
 
-    if (!p.alive) {
-      continue;
-    }
+    if (!p.alive) continue;
 
     if (p.oni) {
       ctx.fillStyle = "red";
     } else {
-      ctx.fillStyle = "lime";
+      ctx.fillStyle = "deepskyblue";
     }
 
     ctx.fillRect(
@@ -264,39 +349,44 @@ function draw() {
     );
 
     ctx.fillStyle = "white";
-    ctx.font = "18px sans-serif";
+    ctx.font =
+      "18px sans-serif";
 
-    if (id === myId) {
-      ctx.fillText(
-        "YOU",
-        p.x - 5,
-        p.y - 10
-      );
-    }
+    ctx.fillText(
+      "P" + p.number,
+      p.x + 5,
+      p.y - 8
+    );
   }
 }
 
-// --------------------
+// ====================
 // リスタート
-// --------------------
+// ====================
 
 document
-  .getElementById("restart")
-  .addEventListener("click", () => {
-    document.getElementById("message")
-      .textContent = "";
+  .getElementById(
+    "restart"
+  )
+  .addEventListener(
+    "click",
+    () => {
+      socket.emit(
+        "restart"
+      );
+    }
+  );
 
-    socket.emit("restart");
-  });
-
-// --------------------
+// ====================
 // ループ
-// --------------------
+// ====================
 
 function gameLoop() {
   update();
   draw();
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(
+    gameLoop
+  );
 }
 
 gameLoop();
