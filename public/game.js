@@ -76,6 +76,17 @@ function update() {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  ctx.fillStyle = "gray";
+
+for (let obs of obstacles) {
+  ctx.fillRect(
+    obs.x,
+    obs.y,
+    obs.width,
+    obs.height
+  );
+}
+
   for (const id in players) {
     const p = players[id];
 
