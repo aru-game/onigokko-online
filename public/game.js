@@ -3,43 +3,59 @@ const socket = io();
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+const miniCanvas = document.getElementById("miniMap");
+const miniCtx = miniCanvas.getContext("2d");
+
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
+
+miniCanvas.width = 160;
+miniCanvas.height = 100;
 
 window.addEventListener("resize", () => {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 });
 
-let myId = null;
-let players = {};
-let canMove = false;
+const MAP_WIDTH = 2400;
+const MAP_HEIGHT = 1400;
 
 const PLAYER_SIZE = 40;
 const SPEED = 5;
 
+let myId = null;
+let players = {};
+let canMove = false;
+
 let me = {
-  x: 80,
-  y: 80
+  x: 100,
+  y: 100
+};
+
+let camera = {
+  x: 0,
+  y: 0
 };
 
 // 障害物
 const obstacles = [
-  { x: 300, y: 200, width: 200, height: 50 },
-  { x: 700, y: 200, width: 200, height: 50 },
-  { x: 500, y: 400, width: 200, height: 50 }
+  { x: 500, y: 300, width: 300, height: 50 },
+  { x: 1200, y: 400, width: 50, height: 300 },
+  { x: 1700, y: 900, width: 300, height: 50 },
+  { x: 700, y: 1000, width: 300, height: 50 },
+  { x: 1800, y: 200, width: 50, height: 300 }
 ];
 
-// ====================
+// ===================
 // Socket
-// ====================
+// ===================
 
 socket.on("connect", () => {
   myId = socket.id;
 });
 
 socket.on("roomFull", () => {
-  alert("部屋が満員です（最大4人）");
+  alert("部屋が満員です");
 });
 
 socket.on("currentPlayers", (serverPlayers) => {
@@ -57,22 +73,15 @@ socket.on("currentPlayers", (serverPlayers) => {
       "です";
   }
 
-  let oni = null;
-
   for (const id in players) {
     if (players[id].oni) {
-      oni = players[id];
-      break;
+      document.getElementById(
+        "oniText"
+      ).textContent =
+        "プレイヤー" +
+        players[id].number +
+        "が鬼です！";
     }
-  }
-
-  if (oni) {
-    document.getElementById(
-      "oniText"
-    ).textContent =
-      "プレイヤー" +
-      oni.number +
-      "が鬼です！";
   }
 });
 
@@ -85,9 +94,7 @@ socket.on("playerMoved", (player) => {
 
 socket.on("countdown", (n) => {
   const c =
-    document.getElementById(
-      "countdown"
-    );
+    document.getElementById("countdown");
 
   if (n > 0) {
     c.textContent = n;
@@ -125,9 +132,9 @@ socket.on("gameOver", (msg) => {
   ).textContent = msg;
 });
 
-// ====================
+// ===================
 // 入力
-// ====================
+// ===================
 
 const keys = {};
 
@@ -145,9 +152,9 @@ window.addEventListener(
   }
 );
 
-// ====================
-// スマホ操作
-// ====================
+// ===================
+// スマホボタン
+// ===================
 
 const mobile = {
   up: false,
@@ -177,27 +184,6 @@ function setButton(id, key) {
       mobile[key] = false;
     }
   );
-
-  b.addEventListener(
-    "mousedown",
-    () => {
-      mobile[key] = true;
-    }
-  );
-
-  b.addEventListener(
-    "mouseup",
-    () => {
-      mobile[key] = false;
-    }
-  );
-
-  b.addEventListener(
-    "mouseleave",
-    () => {
-      mobile[key] = false;
-    }
-  );
 }
 
 setButton("up", "up");
@@ -205,9 +191,9 @@ setButton("down", "down");
 setButton("left", "left");
 setButton("right", "right");
 
-// ====================
+// ===================
 // 壁判定
-// ====================
+// ===================
 
 function hitWall(x, y) {
   for (const o of obstacles) {
@@ -224,9 +210,9 @@ function hitWall(x, y) {
   return false;
 }
 
-// ====================
+// ===================
 // 更新
-// ====================
+// ===================
 
 function update() {
   if (!canMove) return;
@@ -235,57 +221,30 @@ function update() {
   let dx = 0;
   let dy = 0;
 
-  if (
-    keys["ArrowUp"] ||
-    mobile.up
-  ) {
+  if (keys["ArrowUp"] || mobile.up)
     dy -= SPEED;
-  }
 
-  if (
-    keys["ArrowDown"] ||
-    mobile.down
-  ) {
+  if (keys["ArrowDown"] || mobile.down)
     dy += SPEED;
-  }
 
-  if (
-    keys["ArrowLeft"] ||
-    mobile.left
-  ) {
+  if (keys["ArrowLeft"] || mobile.left)
     dx -= SPEED;
-  }
 
-  if (
-    keys["ArrowRight"] ||
-    mobile.right
-  ) {
+  if (keys["ArrowRight"] || mobile.right)
     dx += SPEED;
-  }
 
-  if (
-    !hitWall(
-      me.x + dx,
-      me.y
-    )
-  ) {
+  if (!hitWall(me.x + dx, me.y)) {
     me.x += dx;
   }
 
-  if (
-    !hitWall(
-      me.x,
-      me.y + dy
-    )
-  ) {
+  if (!hitWall(me.x, me.y + dy)) {
     me.y += dy;
   }
 
   me.x = Math.max(
     0,
     Math.min(
-      canvas.width -
-        PLAYER_SIZE,
+      MAP_WIDTH - PLAYER_SIZE,
       me.x
     )
   );
@@ -293,9 +252,34 @@ function update() {
   me.y = Math.max(
     0,
     Math.min(
-      canvas.height -
-        PLAYER_SIZE,
+      MAP_HEIGHT - PLAYER_SIZE,
       me.y
+    )
+  );
+
+  camera.x =
+    me.x -
+    canvas.width / 2 +
+    PLAYER_SIZE / 2;
+
+  camera.y =
+    me.y -
+    canvas.height / 2 +
+    PLAYER_SIZE / 2;
+
+  camera.x = Math.max(
+    0,
+    Math.min(
+      MAP_WIDTH - canvas.width,
+      camera.x
+    )
+  );
+
+  camera.y = Math.max(
+    0,
+    Math.min(
+      MAP_HEIGHT - canvas.height,
+      camera.y
     )
   );
 
@@ -305,9 +289,9 @@ function update() {
   });
 }
 
-// ====================
+// ===================
 // 描画
-// ====================
+// ===================
 
 function draw() {
   ctx.clearRect(
@@ -315,6 +299,22 @@ function draw() {
     0,
     canvas.width,
     canvas.height
+  );
+
+  ctx.save();
+
+  ctx.translate(
+    -camera.x,
+    -camera.y
+  );
+
+  // 地面
+  ctx.fillStyle = "#7bc96f";
+  ctx.fillRect(
+    0,
+    0,
+    MAP_WIDTH,
+    MAP_HEIGHT
   );
 
   // 障害物
@@ -335,11 +335,8 @@ function draw() {
 
     if (!p.alive) continue;
 
-    if (p.oni) {
-      ctx.fillStyle = "red";
-    } else {
-      ctx.fillStyle = "deepskyblue";
-    }
+    ctx.fillStyle =
+      p.oni ? "red" : "deepskyblue";
 
     ctx.fillRect(
       p.x,
@@ -349,41 +346,85 @@ function draw() {
     );
 
     ctx.fillStyle = "white";
-    ctx.font =
-      "18px sans-serif";
+    ctx.font = "18px sans-serif";
 
     ctx.fillText(
       "P" + p.number,
       p.x + 5,
-      p.y - 8
+      p.y - 10
+    );
+  }
+
+  ctx.restore();
+
+  drawMiniMap();
+}
+
+// ===================
+// ミニマップ
+// ===================
+
+function drawMiniMap() {
+  miniCtx.clearRect(
+    0,
+    0,
+    miniCanvas.width,
+    miniCanvas.height
+  );
+
+  miniCtx.fillStyle =
+    "rgba(0,0,0,0.3)";
+  miniCtx.fillRect(
+    0,
+    0,
+    miniCanvas.width,
+    miniCanvas.height
+  );
+
+  const scaleX =
+    miniCanvas.width / MAP_WIDTH;
+
+  const scaleY =
+    miniCanvas.height / MAP_HEIGHT;
+
+  for (const id in players) {
+    const p = players[id];
+
+    if (!p.alive) continue;
+
+    miniCtx.fillStyle =
+      p.oni ? "red" : "cyan";
+
+    miniCtx.fillRect(
+      p.x * scaleX,
+      p.y * scaleY,
+      6,
+      6
     );
   }
 }
 
-// ====================
+// ===================
 // リスタート
-// ====================
+// ===================
 
 document
-  .getElementById(
-    "restart"
-  )
+  .getElementById("restart")
   .addEventListener(
     "click",
     () => {
-      socket.emit(
-        "restart"
-      );
+      socket.emit("restart");
     }
   );
 
-// ====================
-// ループ
-// ====================
+// ===================
+// メインループ
+// ===================
 
 function gameLoop() {
   update();
   draw();
+
   requestAnimationFrame(
     gameLoop
   );
