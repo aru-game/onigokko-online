@@ -2,6 +2,13 @@ const socket = io();
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const obstacles = [
+  { x: 200, y: 150, width: 100, height: 150 },
+  { x: 500, y: 100, width: 150, height: 80 },
+  { x: 150, y: 400, width: 200, height: 60 },
+  { x: 550, y: 350, width: 100, height: 180 },
+  { x: 380, y: 250, width: 50, height: 100 }
+];
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
