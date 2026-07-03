@@ -18,70 +18,79 @@ const spawnPoints = [
 ];
 
 let players = {};
+
 let gameStarted = false;
-let gameOver = false;
 let countdown = 3;
 let timer = 60;
+let oniId = null;
+let timerInterval = null;
+let countdownInterval = null;
 
-function startGame() {
-  if (Object.keys(players).length < 2) {
-    gameStarted = false;
-    return;
-  }
+function sendPlayers() {
+  io.emit("currentPlayers", players);
+}
 
+function resetGame() {
   gameStarted = false;
-  gameOver = false;
   countdown = 3;
   timer = 60;
 
-  // 全員を逃げにする
-  for (const id in players) {
-    players[id].oni = false;
+  clearInterval(timerInterval);
+  clearInterval(countdownInterval);
+
+  oniId = null;
+
+  const ids = Object.keys(players);
+
+  ids.forEach((id, index) => {
+    players[id].x = spawnPoints[index].x;
+    players[id].y = spawnPoints[index].y;
     players[id].alive = true;
+    players[id].oni = false;
+  });
+
+  if (ids.length >= 2) {
+    oniId =
+      ids[Math.floor(Math.random() * ids.length)];
+
+    players[oniId].oni = true;
   }
 
-  // ランダムで鬼を1人決定
-  const ids = Object.keys(players);
-  const oni =
-    ids[Math.floor(Math.random() * ids.length)];
+  sendPlayers();
+}
 
-  players[oni].oni = true;
+function startGame() {
+  if (Object.keys(players).length < 2) {
+    return;
+  }
 
-  io.emit("currentPlayers", players);
+  resetGame();
 
-  const countInterval = setInterval(() => {
-    countdown--;
-
+  countdownInterval = setInterval(() => {
     io.emit("countdown", countdown);
 
-    if (countdown <= 0) {
-      clearInterval(countInterval);
+    countdown--;
+
+    if (countdown < 0) {
+      clearInterval(countdownInterval);
 
       gameStarted = true;
 
       io.emit("gameStart");
 
-      const timerInterval = setInterval(() => {
-        if (!gameStarted) {
-          clearInterval(timerInterval);
-          return;
-        }
-
+      timerInterval = setInterval(() => {
         timer--;
 
         io.emit("timer", timer);
 
-        // 逃げ切り勝ち
         if (timer <= 0) {
+          clearInterval(timerInterval);
           gameStarted = false;
-          gameOver = true;
 
           io.emit(
             "gameOver",
-            "逃げ側の勝ち！"
+            "逃げ側の勝利！"
           );
-
-          clearInterval(timerInterval);
         }
       }, 1000);
     }
@@ -103,13 +112,14 @@ io.on("connection", (socket) => {
     Object.keys(players).length;
 
   players[socket.id] = {
+    number: index + 1,
     x: spawnPoints[index].x,
     y: spawnPoints[index].y,
     oni: false,
     alive: true
   };
 
-  io.emit("currentPlayers", players);
+  sendPlayers();
 
   if (
     Object.keys(players).length >= 2 &&
@@ -122,8 +132,9 @@ io.on("connection", (socket) => {
     if (
       !players[socket.id] ||
       !gameStarted
-    )
+    ) {
       return;
+    }
 
     players[socket.id].x = data.x;
     players[socket.id].y = data.y;
@@ -134,10 +145,11 @@ io.on("connection", (socket) => {
       y: data.y
     });
 
-    // 鬼判定
     const me = players[socket.id];
 
-    if (!me.oni) return;
+    if (!me.oni) {
+      return;
+    }
 
     for (const id in players) {
       if (
@@ -158,21 +170,23 @@ io.on("connection", (socket) => {
       if (distance < 40) {
         p.alive = false;
 
-        io.emit("currentPlayers", players);
+        sendPlayers();
 
-        const alive =
+        const runners =
           Object.values(players).filter(
-            (p) =>
-              !p.oni && p.alive
+            p =>
+              !p.oni &&
+              p.alive
           );
 
-        if (alive.length === 0) {
+        if (runners.length === 0) {
+          clearInterval(timerInterval);
+
           gameStarted = false;
-          gameOver = true;
 
           io.emit(
             "gameOver",
-            "鬼の勝ち！"
+            `プレイヤー${me.number}の勝利！`
           );
         }
       }
@@ -190,7 +204,14 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     delete players[socket.id];
 
-    io.emit("currentPlayers", players);
+    const ids =
+      Object.keys(players);
+
+    ids.forEach((id, index) => {
+      players[id].number = index + 1;
+    });
+
+    sendPlayers();
   });
 });
 
@@ -198,10 +219,7 @@ const PORT =
   process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-  console.log("サーバー起動");
+  console.log(
+    `サーバー起動 ${PORT}`
+  );
 });
-
-if (Object.keys(players).length >= 2 && !gameStarted) {
-  console.log("startGame");
-  startGame();
-}
