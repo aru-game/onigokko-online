@@ -8,21 +8,22 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
+const PORT = process.env.PORT || 3000;
 const MAX_PLAYERS = 4;
 
+const MAP_WIDTH = 2400;
+const MAP_HEIGHT = 1400;
+
 const spawnPoints = [
-  { x: 80, y: 80 },      // 左上
-  { x: 1000, y: 80 },    // 右上
-  { x: 80, y: 600 },     // 左下
-  { x: 1000, y: 600 }    // 右下
+  { x: 100, y: 100 },
+  { x: MAP_WIDTH - 140, y: 100 },
+  { x: 100, y: MAP_HEIGHT - 140 },
+  { x: MAP_WIDTH - 140, y: MAP_HEIGHT - 140 }
 ];
 
 let players = {};
-
 let gameStarted = false;
-let countdown = 3;
 let timer = 60;
-let oniId = null;
 let timerInterval = null;
 let countdownInterval = null;
 
@@ -30,33 +31,24 @@ function sendPlayers() {
   io.emit("currentPlayers", players);
 }
 
-function resetGame() {
-  gameStarted = false;
-  countdown = 3;
-  timer = 60;
-
-  clearInterval(timerInterval);
-  clearInterval(countdownInterval);
-
-  oniId = null;
-
+function assignRoles() {
   const ids = Object.keys(players);
 
   ids.forEach((id, index) => {
+    players[id].number = index + 1;
+    players[id].oni = false;
+    players[id].alive = true;
+
     players[id].x = spawnPoints[index].x;
     players[id].y = spawnPoints[index].y;
-    players[id].alive = true;
-    players[id].oni = false;
   });
 
   if (ids.length >= 2) {
-    oniId =
+    const oniId =
       ids[Math.floor(Math.random() * ids.length)];
 
     players[oniId].oni = true;
   }
-
-  sendPlayers();
 }
 
 function startGame() {
@@ -64,14 +56,25 @@ function startGame() {
     return;
   }
 
-  resetGame();
+  clearInterval(timerInterval);
+  clearInterval(countdownInterval);
+
+  timer = 60;
+  gameStarted = false;
+
+  assignRoles();
+  sendPlayers();
+
+  let count = 3;
+
+  io.emit("countdown", count);
 
   countdownInterval = setInterval(() => {
-    io.emit("countdown", countdown);
+    count--;
 
-    countdown--;
+    io.emit("countdown", count);
 
-    if (countdown < 0) {
+    if (count <= 0) {
       clearInterval(countdownInterval);
 
       gameStarted = true;
@@ -85,6 +88,7 @@ function startGame() {
 
         if (timer <= 0) {
           clearInterval(timerInterval);
+
           gameStarted = false;
 
           io.emit(
@@ -136,30 +140,27 @@ io.on("connection", (socket) => {
       return;
     }
 
-    players[socket.id].x = data.x;
-    players[socket.id].y = data.y;
+    const me = players[socket.id];
+
+    me.x = data.x;
+    me.y = data.y;
 
     io.emit("playerMoved", {
       id: socket.id,
-      x: data.x,
-      y: data.y
+      x: me.x,
+      y: me.y
     });
 
-    const me = players[socket.id];
-
-    if (!me.oni) {
-      return;
-    }
+    // 鬼なら判定
+    if (!me.oni) return;
 
     for (const id in players) {
-      if (
-        id === socket.id ||
-        !players[id].alive
-      ) {
-        continue;
-      }
+      if (id === socket.id) continue;
 
       const p = players[id];
+
+      if (!p.alive) continue;
+      if (p.oni) continue;
 
       const dx = me.x - p.x;
       const dy = me.y - p.y;
@@ -172,14 +173,14 @@ io.on("connection", (socket) => {
 
         sendPlayers();
 
-        const runners =
+        const aliveRunners =
           Object.values(players).filter(
             p =>
               !p.oni &&
               p.alive
           );
 
-        if (runners.length === 0) {
+        if (aliveRunners.length === 0) {
           clearInterval(timerInterval);
 
           gameStarted = false;
@@ -208,18 +209,16 @@ io.on("connection", (socket) => {
       Object.keys(players);
 
     ids.forEach((id, index) => {
-      players[id].number = index + 1;
+      players[id].number =
+        index + 1;
     });
 
     sendPlayers();
   });
 });
 
-const PORT =
-  process.env.PORT || 3000;
-
 server.listen(PORT, () => {
   console.log(
-    `サーバー起動 ${PORT}`
+    `Server Start : ${PORT}`
   );
 });
